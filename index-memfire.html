@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>社区团购下单</title>
+    <!-- Supabase SDK (兼容MemFire) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- WeUI 样式 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/weui@2.6.5/dist/style/weui.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 414px;
+            margin: 0 auto;
+            background-color: #fff;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #07c160, #06ad56);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        
+        .header .status {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .header .status.open {
+            color: #90EE90;
+        }
+        
+        .header .status.closed {
+            color: #ffcc00;
+        }
+        
+        .product-list {
+            padding: 10px;
+        }
+        
+        .product-item {
+            background: white;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 12px;
+        }
+        
+        .product-image {
+            width: 90px;
+            height: 90px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #f0f0f0;
+            flex-shrink: 0;
+        }
+        
+        .product-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .product-name {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            color: #333;
+        }
+        
+        .product-desc {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .product-price {
+            color: #fa5151;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .product-price small {
+            font-size: 12px;
+            font-weight: normal;
+            color: #999;
+            margin-left: 5px;
+        }
+        
+        .spec-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+        
+        .spec-btn {
+            padding: 4px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #f8f8f8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .spec-btn.active {
+            border-color: #07c160;
+            background: #e8f8e8;
+            color: #07c160;
+        }
+        
+        .spec-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .quantity-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .qty-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .qty-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .qty-value {
+            width: 35px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #eee;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 414px;
+            margin: 0 auto;
+            z-index: 99;
+        }
+        
+        .cart-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .cart-icon {
+            position: relative;
+            font-size: 24px;
+        }
+        
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #fa5151;
+            color: white;
+            font-size: 10px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .cart-total {
+            font-size: 16px;
+        }
+        
+        .cart-total span {
+            color: #fa5151;
+            font-weight: bold;
+        }
+        
+        .submit-btn {
+            background: #07c160;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            width: 100%;
+            max-width: 414px;
+            border-radius: 15px 15px 0 0;
+            padding: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .modal-close {
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #07c160;
+        }
+        
+        .form-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .admin-section {
+            padding: 15px;
+        }
+        
+        .admin-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .admin-tabs {
+            display: flex;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
+        }
+        
+        .admin-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .admin-tab.active {
+            color: #07c160;
+            border-bottom-color: #07c160;
+        }
+        
+        .order-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        .order-table th,
+        .order-table td {
+            padding: 8px 5px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .order-table th {
+            background: #f8f8f8;
+            font-weight: 500;
+        }
+        
+        .order-summary {
+            background: #f0f9f0;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #07c160;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #fa5151;
+            color: white;
+        }
+        
+        .btn-outline {
+            background: white;
+            border: 1px solid #ddd;
+            color: #333;
+        }
+        
+        .btn-block {
+            display: block;
+            width: 100%;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 300;
+            display: none;
+        }
+        
+        .toast.show {
+            display: block;
+            animation: fadeInOut 2s ease-in-out;
+        }
+        
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        .closed-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            text-align: center;
+            margin: 15px;
+            border-radius: 8px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        
+        .payment-list {
+            background: #f8f8f8;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .config-notice {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            color: #1565c0;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .config-notice code {
+            background: #bbdefb;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app">
+        <div class="header">
+            <h1>🛒 社区团购下单</h1>
+            <div class="status" id="statusText">加载中...</div>
+        </div>
+        
+        <div id="content">
+            <div id="orderView">
+                <div class="closed-notice hidden" id="closedNotice">
+                    ⚠️ 本次团购已截止，无法下单
+                </div>
+                
+                <div class="config-notice" id="configNotice">
+                    ⚠️ 请先配置MemFire数据库，然后刷新页面。查看 <code>MemFire配置指南.md</code> 了解详细步骤。
+                </div>
+                
+                <div class="product-list" id="productList">
+                    <div class="loading">加载商品中...</div>
+                </div>
+                
+                <div class="cart-bar" id="cartBar">
+                    <div class="cart-info">
+                        <div class="cart-icon">
+                            🛒
+                            <span class="cart-badge" id="cartBadge">0</span>
+                        </div>
+                        <div class="cart-total">
+                            合计: <span id="totalPrice">¥0.00</span>
+                        </div>
+                    </div>
+                    <button class="submit-btn" id="submitBtn" onclick="showCheckout()">去结算</button>
+                </div>
+            </div>
+            
+            <div id="adminView" class="hidden">
+                <div class="admin-section">
+                    <div class="admin-title">📊 团长管理后台</div>
+                    
+                    <div class="admin-tabs">
+                        <div class="admin-tab active" onclick="switchAdminTab('products')">商品管理</div>
+                        <div class="admin-tab" onclick="switchAdminTab('orders')">订单管理</div>
+                        <div class="admin-tab" onclick="switchAdminTab('settings')">系统设置</div>
+                    </div>
+                    
+                    <div id="productsTab">
+                        <button class="btn btn-primary btn-block" onclick="showAddProduct()">➕ 添加商品</button>
+                        <div id="adminProductList" class="product-list" style="margin-top: 15px;">
+                            <div class="loading">加载商品中...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="ordersTab" class="hidden">
+                        <div class="order-summary" id="orderSummary">
+                            <div>📊 订单统计加载中...</div>
+                        </div>
+                        
+                        <button class="btn btn-outline" onclick="exportOrders()" style="margin-bottom: 10px;">📥 导出订单(CSV)</button>
+                        <button class="btn btn-primary" onclick="generatePaymentList()">💰 生成收款清单</button>
+                        
+                        <div class="payment-list hidden" id="paymentList"></div>
+                        
+                        <div style="margin-top: 15px;">
+                            <table class="order-table" id="orderTable">
+                                <thead>
+                                    <tr>
+                                        <th>购买人</th>
+                                        <th>商品明细</th>
+                                        <th>金额</th>
+                                        <th>备注</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="orderTableBody">
+                                    <tr>
+                                        <td colspan="4" class="loading">加载订单中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div id="settingsTab" class="hidden">
+                        <div class="form-group">
+                            <label class="form-label">接单状态</label>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-primary" onclick="setOrderingStatus(true)">✅ 开启接单</button>
+                                <button class="btn btn-danger" onclick="setOrderingStatus(false)">❌ 关闭接单</button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">分享链接</label>
+                            <input type="text" class="form-input" id="shareLink" readonly>
+                            <button class="btn btn-outline btn-block" onclick="copyShareLink()" style="margin-top: 10px;">📋 复制链接</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">管理密码</label>
+                            <input type="password" class="form-input" id="adminPassword" placeholder="输入新密码">
+                            <button class="btn btn-outline btn-block" onclick="changeAdminPassword()" style="margin-top: 10px;">修改密码</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal" id="checkoutModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">确认订单</div>
+                <div class="modal-close" onclick="closeModal('checkoutModal')">×</div>
+            </div>
+            
+            <div id="checkoutItems"></div>
+            
+            <div class="order-summary">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>订单总计</span>
+                    <span style="color: #fa5151; font-weight: bold;" id="checkoutTotal">¥0.00</span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">微信群昵称 <span style="color: #fa5151;">*</span></label>
+                <input type="text" class="form-input" id="nickname" placeholder="请输入您在业主群的昵称" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">备注（选填）</label>
+                <textarea class="form-input form-textarea" id="remark" placeholder="如有特殊要求请在此说明"></textarea>
+            </div>
+            
+            <button class="btn btn-primary btn-block" onclick="submitOrder()">提交订单</button>
+        </div>
+    </div>
+    
+    <div class="modal" id="productModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="productModalTitle">添加商品</div>
+                <div class="modal-close" onclick="closeModal('productModal')">×</div>
+            </div>
+            
+            <input type="hidden" id="productId">
+            
+            <div class="form-group">
+                <label class="form-label">商品名称 <span style="color: #fa5151;">*</span></label>
+                <input type="text" class="form-input" id="productName" placeholder="例如：新鲜草莓" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">商品描述</label>
+                <textarea class="form-input form-textarea" id="productDescription" placeholder="商品详细描述"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">商品图片URL</label>
+                <input type="url" class="form-input" id="productImage" placeholder="https://example.com/image.jpg">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">基础价格 <span style="color: #fa5151;">*</span></label>
+                <input type="number" class="form-input" id="productPrice" placeholder="10.5" step="0.01" min="0" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">库存数量（留空表示无限）</label>
+                <input type="number" class="form-input" id="productStock" placeholder="100" min="0">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">规格设置</label>
+                <div id="specsContainer">
+                    <div class="spec-item" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" class="form-input" placeholder="规格名称" style="flex: 1;">
+                        <input type="number" class="form-input" placeholder="价格" style="width: 80px;" step="0.01">
+                        <button class="btn btn-danger" onclick="removeSpec(this)" style="padding: 8px;">×</button>
+                    </div>
+                </div>
+                <button class="btn btn-outline" onclick="addSpecField()">➕ 添加规格</button>
+            </div>
+            
+            <button class="btn btn-primary btn-block" onclick="saveProduct()">保存商品</button>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============================================
+        // MemFire 配置 - 请在这里填入你的配置
+        // ============================================
+        const MEMFIRE_CONFIG = {
+            url: '你的MemFire项目URL',  // 例如：https://xxx.memfiredb.com
+            anonKey: '你的Anon Key'     // 例如：eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        };
+        
+        const DEFAULT_ADMIN_PASSWORD = 'admin123';
+        
+        // 检查配置是否已填写
+        let isConfigured = MEMFIRE_CONFIG.url !== '你的MemFire项目URL' && 
+                          MEMFIRE_CONFIG.anonKey !== '你的Anon Key';
+        
+        // 初始化Supabase客户端
+        let supabaseClient = null;
+        if (isConfigured) {
+            supabaseClient = supabase.createClient(MEMFIRE_CONFIG.url, MEMFIRE_CONFIG.anonKey);
+        }
+        
+        let state = {
+            products: [],
+            cart: [],
+            isAdmin: false,
+            isOrderingOpen: true,
+            adminPassword: DEFAULT_ADMIN_PASSWORD
+        };
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // 隐藏配置提示
+            if (isConfigured) {
+                document.getElementById('configNotice').classList.add('hidden');
+            }
+            
+            checkAdminMode();
+            generateShareLink();
+            
+            if (isConfigured) {
+                loadConfig();
+                loadProducts();
+            } else {
+                // 显示配置提示
+                document.getElementById('statusText').textContent = '需要配置';
+                document.getElementById('productList').innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px;">⚙️</div>
+                        <p>请先配置MemFire数据库</p>
+                        <p style="font-size: 12px; color: #999; margin-top: 10px;">
+                            1. 注册MemFire账号<br>
+                            2. 创建项目和数据表<br>
+                            3. 填入配置信息
+                        </p>
+                    </div>
+                `;
+            }
+        });
+        
+        function checkAdminMode() {
+            if (window.location.hash === '#admin') {
+                state.isAdmin = true;
+                document.getElementById('orderView').classList.add('hidden');
+                document.getElementById('adminView').classList.remove('hidden');
+                
+                const savedPassword = localStorage.getItem('adminPassword') || DEFAULT_ADMIN_PASSWORD;
+                const inputPassword = prompt('请输入管理员密码：');
+                if (inputPassword !== savedPassword) {
+                    alert('密码错误！');
+                    window.location.hash = '';
+                    state.isAdmin = false;
+                    document.getElementById('orderView').classList.remove('hidden');
+                    document.getElementById('adminView').classList.add('hidden');
+                    return;
+                }
+                
+                if (isConfigured) {
+                    loadOrders();
+                }
+            }
+        }
+        
+        function generateShareLink() {
+            const baseUrl = window.location.origin + window.location.pathname;
+            document.getElementById('shareLink').value = baseUrl;
+        }
+        
+        async function loadConfig() {
+            if (!isConfigured) return;
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('config')
+                    .select('*')
+                    .eq('key', 'ordering_open')
+                    .single();
+                
+                if (error && error.code !== 'PGRST116') {
+                    throw error;
+                }
+                
+                if (data) {
+                    state.isOrderingOpen = data.value;
+                } else {
+                    // 创建默认配置
+                    const { error: insertError } = await supabaseClient
+                        .from('config')
+                        .insert({ key: 'ordering_open', value: true });
+                    
+                    if (insertError) throw insertError;
+                }
+                
+                updateOrderingUI();
+            } catch (error) {
+                console.error('加载配置失败:', error);
+                showToast('加载配置失败，请刷新页面');
+            }
+        }
+        
+        function updateOrderingUI() {
+            const statusText = document.getElementById('statusText');
+            const closedNotice = document.getElementById('closedNotice');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (state.isOrderingOpen) {
+                statusText.textContent = '接单中';
+                statusText.className = 'status open';
+                closedNotice.classList.add('hidden');
+                submitBtn.disabled = false;
+            } else {
+                statusText.textContent = '已截止';
+                statusText.className = 'status closed';
+                closedNotice.classList.remove('hidden');
+                submitBtn.disabled = true;
+            }
+        }
+        
+        async function setOrderingStatus(isOpen) {
+            if (!isConfigured) {
+                showToast('请先配置MemFire数据库');
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('config')
+                    .upsert({ key: 'ordering_open', value: isOpen });
+                
+                if (error) throw error;
+                
+                state.isOrderingOpen = isOpen;
+                updateOrderingUI();
+                
+                showToast(isOpen ? '已开启接单' : '已关闭接单');
+            } catch (error) {
+                console.error('设置失败:', error);
+                showToast('设置失败，请重试');
+            }
+        }
+        
+        async function loadProducts() {
+            if (!isConfigured) return;
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('product')
+                    .select('*')
+                    .eq('active', true)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                state.products = data.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    description: p.description,
+                    price: p.price,
+                    stock: p.stock,
+                    image: p.image,
+                    specs: p.specs || []
+                }));
+                
+                renderProducts();
+                if (state.isAdmin) {
+                    renderAdminProducts();
+                }
+            } catch (error) {
+                console.error('加载商品失败:', error);
+                showToast('加载商品失败，请刷新页面');
+            }
+        }
+        
+        function renderProducts() {
+            const container = document.getElementById('productList');
+            
+            if (state.products.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div style="font-size: 48px;">📦</div><p>暂无商品</p></div>';
+                return;
+            }
+            
+            container.innerHTML = state.products.map(product => {
+                const cartItem = state.cart.find(item => item.productId === product.id);
+                const quantity = cartItem ? cartItem.quantity : 0;
+                const selectedSpec = cartItem ? cartItem.spec : (product.specs[0]?.name || '');
+                
+                return `
+                    <div class="product-item">
+                        <img src="${product.image || 'https://via.placeholder.com/90'}" class="product-image" onerror="this.src='https://via.placeholder.com/90'" alt="${product.name}">
+                        <div class="product-info">
+                            <div>
+                                <div class="product-name">${product.name}</div>
+                                <div class="product-desc">${product.description || ''}</div>
+                            </div>
+                            
+                            ${product.specs.length > 0 ? `
+                                <div class="spec-selector">
+                                    ${product.specs.map(spec => `
+                                        <button class="spec-btn ${selectedSpec === spec.name ? 'active' : ''}" onclick="selectSpec('${product.id}', '${spec.name}', ${spec.price})" ${product.stock === 0 ? 'disabled' : ''}>
+                                            ${spec.name}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div class="product-price">
+                                    ¥${getProductPrice(product, selectedSpec).toFixed(2)}
+                                    ${product.stock !== null && product.stock !== undefined ? `<small>库存: ${product.stock}</small>` : ''}
+                                </div>
+                                
+                                <div class="quantity-selector">
+                                    <button class="qty-btn" onclick="updateCart('${product.id}', '${selectedSpec}', -1)" ${quantity === 0 ? 'disabled' : ''}>-</button>
+                                    <span class="qty-value">${quantity}</span>
+                                    <button class="qty-btn" onclick="updateCart('${product.id}', '${selectedSpec}', 1)" ${product.stock !== null && product.stock !== undefined && quantity >= product.stock ? 'disabled' : ''}>+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderAdminProducts() {
+            const container = document.getElementById('adminProductList');
+            
+            if (state.products.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div style="font-size: 48px;">📦</div><p>暂无商品，点击上方按钮添加</p></div>';
+                return;
+            }
+            
+            container.innerHTML = state.products.map(product => `
+                <div class="product-item">
+                    <img src="${product.image || 'https://via.placeholder.com/90'}" class="product-image" onerror="this.src='https://via.placeholder.com/90'" alt="${product.name}">
+                    <div class="product-info">
+                        <div>
+                            <div class="product-name">${product.name}</div>
+                            <div class="product-desc">${product.description || ''}</div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="product-price">
+                                ¥${product.price.toFixed(2)}
+                                ${product.stock !== null && product.stock !== undefined ? `<small>库存: ${product.stock}</small>` : ''}
+                            </div>
+                            
+                            <div>
+                                <button class="btn btn-outline" onclick="editProduct('${product.id}')" style="margin-right: 5px;">✏️</button>
+                                <button class="btn btn-danger" onclick="deleteProduct('${product.id}')">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getProductPrice(product, specName) {
+            if (product.specs.length > 0 && specName) {
+                const spec = product.specs.find(s => s.name === specName);
+                if (spec) return spec.price;
+            }
+            return product.price;
+        }
+        
+        function selectSpec(productId, specName, specPrice) {
+            const cartItem = state.cart.find(item => item.productId === productId);
+            if (cartItem) {
+                cartItem.spec = specName;
+                cartItem.price = specPrice;
+            }
+            renderProducts();
+            updateCartUI();
+        }
+        
+        function showAddProduct() {
+            if (!isConfigured) {
+                showToast('请先配置MemFire数据库');
+                return;
+            }
+            
+            document.getElementById('productModalTitle').textContent = '添加商品';
+            document.getElementById('productId').value = '';
+            document.getElementById('productName').value = '';
+            document.getElementById('productDescription').value = '';
+            document.getElementById('productImage').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('productStock').value = '';
+            
+            document.getElementById('specsContainer').innerHTML = `
+                <div class="spec-item" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="text" class="form-input" placeholder="规格名称" style="flex: 1;">
+                    <input type="number" class="form-input" placeholder="价格" style="width: 80px;" step="0.01">
+                    <button class="btn btn-danger" onclick="removeSpec(this)" style="padding: 8px;">×</button>
+                </div>
+            `;
+            
+            openModal('productModal');
+        }
+        
+        function editProduct(productId) {
+            const product = state.products.find(p => p.id === productId);
+            if (!product) return;
+            
+            document.getElementById('productModalTitle').textContent = '编辑商品';
+            document.getElementById('productId').value = product.id;
+            document.getElementById('productName').value = product.name;
+            document.getElementById('productDescription').value = product.description || '';
+            document.getElementById('productImage').value = product.image || '';
+            document.getElementById('productPrice').value = product.price;
+            document.getElementById('productStock').value = product.stock || '';
+            
+            const specsContainer = document.getElementById('specsContainer');
+            specsContainer.innerHTML = '';
+            
+            if (product.specs.length > 0) {
+                product.specs.forEach(spec => {
+                    addSpecField(spec.name, spec.price);
+                });
+            } else {
+                addSpecField();
+            }
+            
+            openModal('productModal');
+        }
+        
+        function addSpecField(name = '', price = '') {
+            const container = document.getElementById('specsContainer');
+            const specItem = document.createElement('div');
+            specItem.className = 'spec-item';
+            specItem.style.cssText = 'display: flex; gap: 10px; margin-bottom: 10px;';
+            specItem.innerHTML = `
+                <input type="text" class="form-input" placeholder="规格名称" style="flex: 1;" value="${name}">
+                <input type="number" class="form-input" placeholder="价格" style="width: 80px;" step="0.01" value="${price}">
+                <button class="btn btn-danger" onclick="removeSpec(this)" style="padding: 8px;">×</button>
+            `;
+            container.appendChild(specItem);
+        }
+        
+        function removeSpec(btn) {
+            const container = document.getElementById('specsContainer');
+            if (container.children.length > 1) {
+                btn.parentElement.remove();
+            }
+        }
+        
+        async function saveProduct() {
+            if (!isConfigured) {
+                showToast('请先配置MemFire数据库');
+                return;
+            }
+            
+            const productId = document.getElementById('productId').value;
+            const name = document.getElementById('productName').value.trim();
+            const description = document.getElementById('productDescription').value.trim();
+            const image = document.getElementById('productImage').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value);
+            const stockInput = document.getElementById('productStock').value.trim();
+            const stock = stockInput ? parseInt(stockInput) : null;
+            
+            if (!name) {
+                showToast('请输入商品名称');
+                return;
+            }
+            
+            if (isNaN(price) || price < 0) {
+                showToast('请输入有效的价格');
+                return;
+            }
+            
+            const specItems = document.querySelectorAll('.spec-item');
+            const specs = [];
+            specItems.forEach(item => {
+                const inputs = item.querySelectorAll('input');
+                const specName = inputs[0].value.trim();
+                const specPrice = parseFloat(inputs[1].value);
+                
+                if (specName && !isNaN(specPrice)) {
+                    specs.push({ name: specName, price: specPrice });
+                }
+            });
+            
+            try {
+                if (productId) {
+                    // 编辑现有商品
+                    const { error } = await supabaseClient
+                        .from('product')
+                        .update({
+                            name: name,
+                            description: description,
+                            image: image,
+                            price: price,
+                            stock: stock,
+                            specs: specs
+                        })
+                        .eq('id', productId);
+                    
+                    if (error) throw error;
+                } else {
+                    // 新建商品
+                    const { error } = await supabaseClient
+                        .from('product')
+                        .insert({
+                            name: name,
+                            description: description,
+                            image: image,
+                            price: price,
+                            stock: stock,
+                            specs: specs,
+                            active: true
+                        });
+                    
+                    if (error) throw error;
+                }
+                
+                showToast(productId ? '商品更新成功' : '商品添加成功');
+                closeModal('productModal');
+                loadProducts();
+            } catch (error) {
+                console.error('保存商品失败:', error);
+                showToast('保存商品失败，请重试');
+            }
+        }
+        
+        async function deleteProduct(productId) {
+            if (!isConfigured) {
+                showToast('请先配置MemFire数据库');
+                return;
+            }
+            
+            if (!confirm('确定要删除这个商品吗？')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabaseClient
+                    .from('product')
+                    .update({ active: false })
+                    .eq('id', productId);
+                
+                if (error) throw error;
+                
+                showToast('商品删除成功');
+                loadProducts();
+            } catch (error) {
+                console.error('删除商品失败:', error);
+                showToast('删除商品失败，请重试');
+            }
+        }
+        
+        function updateCart(productId, specName, delta) {
+            const product = state.products.find(p => p.id === productId);
+            if (!product) return;
+            
+            let cartItem = state.cart.find(item => item.productId === productId && item.spec === specName);
+            
+            if (!cartItem && delta > 0) {
+                const price = getProductPrice(product, specName);
+                cartItem = { productId: product.id, productName: product.name, spec: specName, price: price, quantity: 0 };
+                state.cart.push(cartItem);
+            }
+            
+            if (cartItem) {
+                cartItem.quantity += delta;
+                
+                if (cartItem.quantity <= 0) {
+                    state.cart = state.cart.filter(item => !(item.productId === productId && item.spec === specName));
+                } else if (product.stock !== null && product.stock !== undefined && cartItem.quantity > product.stock) {
+                    cartItem.quantity = product.stock;
+                }
+            }
+            
+            renderProducts();
+            updateCartUI();
+        }
+        
+        function updateCartUI() {
+            const totalItems = state.cart.reduce((sum, item) => sum + item.quantity, 0);
+            const totalPrice = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            document.getElementById('cartBadge').textContent = totalItems;
+            document.getElementById('totalPrice').textContent = `¥${totalPrice.toFixed(2)}`;
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = !state.isOrderingOpen || totalItems === 0;
+        }
+        
+        async function loadOrders() {
+            if (!isConfigured) return;
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('order')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+                
+                if (error) throw error;
+                
+                renderOrders(data);
+            } catch (error) {
+                console.error('加载订单失败:', error);
+                showToast('加载订单失败，请重试');
+            }
+        }
+        
+        function renderOrders(orders) {
+            const tbody = document.getElementById('orderTableBody');
+            const summary = document.getElementById('orderSummary');
+            
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #999;">暂无订单</td></tr>';
+                summary.innerHTML = '<div>📊 暂无订单数据</div>';
+                return;
+            }
+            
+            const totalAmount = orders.reduce((sum, order) => sum + order.total, 0);
+            const totalOrders = orders.length;
+            const uniqueCustomers = new Set(orders.map(o => o.nickname)).size;
+            
+            summary.innerHTML = `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>📋 订单总数</span>
+                    <span style="font-weight: bold;">${totalOrders}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>👥 购买人数</span>
+                    <span style="font-weight: bold;">${uniqueCustomers}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>💰 总金额</span>
+                    <span style="font-weight: bold; color: #fa5151;">¥${totalAmount.toFixed(2)}</span>
+                </div>
+            `;
+            
+            tbody.innerHTML = orders.map(order => {
+                const items = order.items || [];
+                const itemsText = items.map(item => `${item.productName}(${item.spec || '默认'})×${item.quantity}`).join('<br>');
+                
+                return `
+                    <tr>
+                        <td>${order.nickname}</td>
+                        <td>${itemsText}</td>
+                        <td style="color: #fa5151;">¥${order.total.toFixed(2)}</td>
+                        <td>${order.remark || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function exportOrders() {
+            alert('导出功能：请在MemFire控制台导出order表数据为CSV格式。');
+        }
+        
+        function generatePaymentList() {
+            if (!isConfigured) {
+                showToast('请先配置MemFire数据库');
+                return;
+            }
+            
+            const query = supabaseClient
+                .from('order')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100);
+            
+            query.then(({ data: orders, error }) => {
+                if (error) {
+                    console.error('生成收款清单失败:', error);
+                    showToast('生成收款清单失败');
+                    return;
+                }
+                
+                if (orders.length === 0) {
+                    showToast('暂无订单');
+                    return;
+                }
+                
+                const customerMap = new Map();
+                orders.forEach(order => {
+                    const nickname = order.nickname;
+                    const total = order.total;
+                    
+                    if (customerMap.has(nickname)) {
+                        customerMap.set(nickname, customerMap.get(nickname) + total);
+                    } else {
+                        customerMap.set(nickname, total);
+                    }
+                });
+                
+                let paymentText = '💰 群收款清单\n\n';
+                customerMap.forEach((amount, nickname) => {
+                    paymentText += `@${nickname} 应付: ¥${amount.toFixed(2)}\n`;
+                });
+                
+                paymentText += `\n总计: ¥${Array.from(customerMap.values()).reduce((a, b) => a + b, 0).toFixed(2)}`;
+                
+                const paymentList = document.getElementById('paymentList');
+                paymentList.textContent = paymentText;
+                paymentList.classList.remove('hidden');
+                
+                if (!document.getElementById('copyPaymentBtn')) {
+                    const copyBtn = document.createElement('button');
+                    copyBtn.id = 'copyPaymentBtn';
+                    copyBtn.className = 'btn btn-primary btn-block';
+                    copyBtn.style.marginTop = '10px';
+                    copyBtn.textContent = '📋 复制收款清单';
+                    copyBtn.onclick = function() {
+                        navigator.clipboard.writeText(paymentText).then(() => {
+                            showToast('收款清单已复制到剪贴板');
+                        }).catch(err => {
+                            console.error('复制失败:', err);
+                            showToast('复制失败，请手动复制');
+                        });
+                    };
+                    paymentList.after(copyBtn);
+                }
+            });
+        }
+        
+        function showCheckout() {
+            if (!state.isOrderingOpen) {
+                showToast('团购已截止，无法下单');
+                return;
+            }
+            
+            if (state.cart.length === 0) {
+                showToast('购物车为空');
+                return;
+            }
+            
+            const checkoutItems = document.getElementById('checkoutItems');
+            checkoutItems.innerHTML = state.cart.map(item => `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>${item.productName}(${item.spec || '默认'})×${item.quantity}</span>
+                    <span>¥${(item.price * item.quantity).toFixed(2)}</span>
+                </div>
+            `).join('');
+            
+            const totalPrice = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            document.getElementById('checkoutTotal').textContent = `¥${totalPrice.toFixed(2)}`;
+            
+            openModal('checkoutModal');
+        }
+        
+        async function submitOrder() {
+            if (!isConfigured) {
+                showToast('请先配置MemFire数据库');
+                return;
+            }
+            
+            const nickname = document.getElementById('nickname').value.trim();
+            const remark = document.getElementById('remark').value.trim();
+            
+            if (!nickname) {
+                showToast('请输入微信群昵称');
+                return;
+            }
+            
+            if (state.cart.length === 0) {
+                showToast('购物车为空');
+                return;
+            }
+            
+            const totalPrice = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            const orderData = {
+                nickname: nickname,
+                items: state.cart.map(item => ({
+                    productId: item.productId,
+                    productName: item.productName,
+                    spec: item.spec,
+                    price: item.price,
+                    quantity: item.quantity
+                })),
+                total: totalPrice,
+                remark: remark,
+                status: 'pending'
+            };
+            
+            try {
+                // 检查库存
+                for (const item of state.cart) {
+                    const product = state.products.find(p => p.id === item.productId);
+                    if (product && product.stock !== null && product.stock !== undefined) {
+                        if (item.quantity > product.stock) {
+                            showToast(`${item.productName} 库存不足`);
+                            return;
+                        }
+                    }
+                }
+                
+                // 创建订单
+                const { error: orderError } = await supabaseClient
+                    .from('order')
+                    .insert(orderData);
+                
+                if (orderError) throw orderError;
+                
+                // 更新库存
+                for (const item of state.cart) {
+                    const product = state.products.find(p => p.id === item.productId);
+                    if (product && product.stock !== null && product.stock !== undefined) {
+                        const { error: updateError } = await supabaseClient
+                            .from('product')
+                            .update({ stock: product.stock - item.quantity })
+                            .eq('id', item.productId);
+                        
+                        if (updateError) console.error('更新库存失败:', updateError);
+                    }
+                }
+                
+                state.cart = [];
+                updateCartUI();
+                renderProducts();
+                
+                closeModal('checkoutModal');
+                showToast('订单提交成功！');
+                loadProducts();
+            } catch (error) {
+                console.error('提交订单失败:', error);
+                showToast('提交订单失败，请重试');
+            }
+        }
+        
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+        
+        function switchAdminTab(tabName) {
+            document.querySelectorAll('.admin-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            document.getElementById('productsTab').classList.add('hidden');
+            document.getElementById('ordersTab').classList.add('hidden');
+            document.getElementById('settingsTab').classList.add('hidden');
+            
+            if (tabName === 'products') {
+                document.getElementById('productsTab').classList.remove('hidden');
+            } else if (tabName === 'orders') {
+                document.getElementById('ordersTab').classList.remove('hidden');
+                loadOrders();
+            } else if (tabName === 'settings') {
+                document.getElementById('settingsTab').classList.remove('hidden');
+            }
+        }
+        
+        function copyShareLink() {
+            const shareLink = document.getElementById('shareLink');
+            shareLink.select();
+            shareLink.setSelectionRange(0, 99999);
+            
+            navigator.clipboard.writeText(shareLink.value).then(() => {
+                showToast('链接已复制到剪贴板');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                document.execCommand('copy');
+                showToast('链接已复制到剪贴板');
+            });
+        }
+        
+        function changeAdminPassword() {
+            const newPassword = document.getElementById('adminPassword').value.trim();
+            if (!newPassword) {
+                showToast('请输入新密码');
+                return;
+            }
+            
+            localStorage.setItem('adminPassword', newPassword);
+            state.adminPassword = newPassword;
+            showToast('密码修改成功');
+            document.getElementById('adminPassword').value = '';
+        }
+        
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && isConfigured) {
+                loadConfig();
+                loadProducts();
+            }
+        });
+    </script>
+</body>
+</html>

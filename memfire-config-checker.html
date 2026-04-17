@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemFire 配置检查工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: #07c160;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .check-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 5px;
+            border-left: 4px solid #07c160;
+        }
+        .check-item.fail {
+            border-left-color: #fa5151;
+            background: #fff0f0;
+        }
+        .check-item.warning {
+            border-left-color: #ffcc00;
+            background: #fff8e0;
+        }
+        .check-result {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .pass { color: #07c160; }
+        .fail { color: #fa5151; }
+        .warning { color: #ffcc00; }
+        .btn {
+            display: inline-block;
+            background: #07c160;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background: #06ad56;
+        }
+        .btn-danger {
+            background: #fa5151;
+        }
+        .btn-outline {
+            background: white;
+            border: 1px solid #ddd;
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #07c160;
+        }
+        .result-box {
+            background: #f0f9f0;
+            border: 1px solid #07c160;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .error-box {
+            background: #fff0f0;
+            border: 1px solid #fa5151;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #fa5151;
+        }
+        .warning-box {
+            background: #fff8e0;
+            border: 1px solid #ffcc00;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #856404;
+        }
+        .hidden {
+            display: none;
+        }
+        pre {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 MemFire 配置检查工具</h1>
+        <p>检查你的MemFire配置是否正确</p>
+    </div>
+    
+    <div class="card">
+        <h2>📋 配置检查</h2>
+        <p>请输入你的MemFire配置信息，然后点击"开始检查"按钮。</p>
+        
+        <div class="input-group">
+            <label>项目URL</label>
+            <input type="text" id="projectUrl" placeholder="例如：https://xxx.memfiredb.com">
+        </div>
+        
+        <div class="input-group">
+            <label>Anon Key</label>
+            <input type="text" id="anonKey" placeholder="例如：eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="checkConfig()">🔍 开始检查</button>
+            <button class="btn btn-outline" onclick="clearForm()">🗑️ 清空</button>
+        </div>
+    </div>
+    
+    <div class="card hidden" id="resultCard">
+        <h2>📊 检查结果</h2>
+        
+        <div id="checkResults">
+            <!-- 检查结果将在这里显示 -->
+        </div>
+        
+        <div id="summaryBox">
+            <!-- 总结信息 -->
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="showConfigCode()">📝 生成配置代码</button>
+            <button class="btn btn-outline" onclick="window.open('index-memfire.html', '_blank')">🛒 打开下单端</button>
+            <button class="btn btn-outline" onclick="window.open('index-memfire.html#admin', '_blank')">📊 打开管理端</button>
+        </div>
+    </div>
+    
+    <div class="card hidden" id="configCodeCard">
+        <h2>📝 配置代码</h2>
+        <p>将以下代码复制到 <code>index-memfire.html</code> 文件的 <code>MEMFIRE_CONFIG</code> 配置区域：</p>
+        
+        <pre id="configCode"></pre>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" onclick="copyConfigCode()">📋 复制代码</button>
+            <button class="btn btn-outline" onclick="hideConfigCode()">❌ 关闭</button>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>📚 配置说明</h2>
+        
+        <div class="check-item">
+            <span class="check-result pass">✅</span>
+            <strong>项目URL</strong><br>
+            在MemFire控制台 → 项目设置 → API设置中找到
+        </div>
+        
+        <div class="check-item">
+            <span class="check-result pass">✅</span>
+            <strong>Anon Key</strong><br>
+            在MemFire控制台 → 项目设置 → API设置中找到
+        </div>
+        
+        <div class="check-item warning">
+            <span class="check-result warning">⚠️</span>
+            <strong>注意事项</strong><br>
+            • 确保两个信息都正确复制<br>
+            • 不要删除引号和逗号<br>
+            • 项目URL必须以https://开头
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>🔗 快速链接</h2>
+        <p>
+            <a href="index-memfire.html" class="btn btn-outline">🛒 下单端</a>
+            <a href="index-memfire.html#admin" class="btn btn-outline">📊 管理端</a>
+            <a href="MemFire超简单配置.md" class="btn btn-outline">📖 配置指南</a>
+        </p>
+    </div>
+    
+    <script>
+        function checkConfig() {
+            const projectUrl = document.getElementById('projectUrl').value.trim();
+            const anonKey = document.getElementById('anonKey').value.trim();
+            
+            // 显示结果卡片
+            document.getElementById('resultCard').classList.remove('hidden');
+            
+            // 清空之前的结果
+            const checkResults = document.getElementById('checkResults');
+            checkResults.innerHTML = '';
+            
+            // 检查项目URL
+            if (!projectUrl) {
+                addCheckResult('项目URL', false, '项目URL不能为空');
+            } else if (!projectUrl.startsWith('https://')) {
+                addCheckResult('项目URL', false, '项目URL必须以https://开头');
+            } else if (!projectUrl.includes('memfiredb.com')) {
+                addCheckResult('项目URL', false, '项目URL格式不正确，应包含memfiredb.com');
+            } else {
+                addCheckResult('项目URL', true, '项目URL格式正确');
+            }
+            
+            // 检查Anon Key
+            if (!anonKey) {
+                addCheckResult('Anon Key', false, 'Anon Key不能为空');
+            } else if (!anonKey.startsWith('eyJ')) {
+                addCheckResult('Anon Key', false, 'Anon Key格式不正确，应以eyJ开头');
+            } else if (anonKey.length < 100) {
+                addCheckResult('Anon Key', false, 'Anon Key长度似乎不对，通常较长');
+            } else {
+                addCheckResult('Anon Key', true, 'Anon Key格式正确');
+            }
+            
+            // 检查是否有空字段
+            const hasEmptyFields = !projectUrl || !anonKey;
+            
+            // 显示总结
+            const summaryBox = document.getElementById('summaryBox');
+            if (hasEmptyFields) {
+                summaryBox.innerHTML = `
+                    <div class="error-box">
+                        <strong>❌ 配置不完整</strong><br>
+                        请填写所有配置信息，然后重新检查。
+                    </div>
+                `;
+            } else {
+                summaryBox.innerHTML = `
+                    <div class="result-box">
+                        <strong>✅ 配置格式检查通过</strong><br>
+                        所有配置信息格式正确，可以尝试使用。
+                    </div>
+                `;
+            }
+        }
+        
+        function addCheckResult(name, passed, message) {
+            const checkResults = document.getElementById('checkResults');
+            const resultClass = passed ? 'pass' : 'fail';
+            const resultIcon = passed ? '✅' : '❌';
+            
+            const checkItem = document.createElement('div');
+            checkItem.className = `check-item ${passed ? '' : 'fail'}`;
+            checkItem.innerHTML = `
+                <span class="check-result ${resultClass}">${resultIcon}</span>
+                <strong>${name}</strong><br>
+                ${message}
+            `;
+            
+            checkResults.appendChild(checkItem);
+        }
+        
+        function clearForm() {
+            document.getElementById('projectUrl').value = '';
+            document.getElementById('anonKey').value = '';
+            document.getElementById('resultCard').classList.add('hidden');
+            document.getElementById('configCodeCard').classList.add('hidden');
+        }
+        
+        function showConfigCode() {
+            const projectUrl = document.getElementById('projectUrl').value.trim();
+            const anonKey = document.getElementById('anonKey').value.trim();
+            
+            if (!projectUrl || !anonKey) {
+                alert('请先填写所有配置信息');
+                return;
+            }
+            
+            const configCode = `const MEMFIRE_CONFIG = {
+    url: '${projectUrl}',
+    anonKey: '${anonKey}'
+};`;
+            
+            document.getElementById('configCode').textContent = configCode;
+            document.getElementById('configCodeCard').classList.remove('hidden');
+        }
+        
+        function hideConfigCode() {
+            document.getElementById('configCodeCard').classList.add('hidden');
+        }
+        
+        function copyConfigCode() {
+            const configCode = document.getElementById('configCode').textContent;
+            navigator.clipboard.writeText(configCode).then(() => {
+                alert('配置代码已复制到剪贴板！\n\n请打开index-memfire.html文件，找到MEMFIRE_CONFIG配置区域，粘贴这段代码。');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                // 降级方案
+                const textArea = document.createElement('textarea');
+                textArea.value = configCode;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('配置代码已复制到剪贴板！\n\n请打开index-memfire.html文件，找到MEMFIRE_CONFIG配置区域，粘贴这段代码。');
+            });
+        }
+    </script>
+</body>
+</html>
